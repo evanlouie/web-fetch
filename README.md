@@ -6,9 +6,23 @@ It is a standalone port of the `web-fetch` extension for the pi coding agent, wi
 
 ## Install
 
-You need [Bun] 1.4.3 or later.
+You need [Bun] 1.4.3 or later. Run `web-fetch` straight from GitHub with `bunx`, or clone the repository.
+
+### Run it from GitHub
 
 ```sh
+bunx github:evanlouie/web-fetch fetch https://example.com
+```
+
+`bunx` downloads the repository, installs its dependencies, keeps both in Bun's global cache, and runs the `web-fetch` command. To pin a version, name a commit or a tag after `#`, as in `github:evanlouie/web-fetch#b995a7f`.
+
+Bun downloads the repository through GitHub's tarball API without credentials, so `bunx` works only while the repository is public.
+
+### Clone it
+
+```sh
+git clone https://github.com/evanlouie/web-fetch.git
+cd web-fetch
 bun install
 bun link
 ```
@@ -38,19 +52,21 @@ Add the server to the client's configuration. Most clients take this shape:
 {
   "mcpServers": {
     "web-fetch": {
-      "command": "/absolute/path/to/bun",
-      "args": ["/absolute/path/to/web-fetch/src/main.ts", "serve"]
+      "command": "/absolute/path/to/bunx",
+      "args": ["github:evanlouie/web-fetch", "serve"]
     }
   }
 }
 ```
 
-Use the path that `which bun` prints. Desktop apps on macOS, such as Claude Desktop, don't read your shell's `PATH`, so a bare `bun` fails to start.
+Use the path that `which bunx` prints. Desktop apps on macOS, such as Claude Desktop, don't read your shell's `PATH` or other variables, so a bare `bunx` fails to start. For the same reason, if your network reaches npm only through a proxy registry, set `NPM_CONFIG_REGISTRY` in the server's `env`. `bunx` installs the dependencies on the first run, and it writes its progress to stderr, so stdout carries only MCP messages.
+
+To run a clone instead, set `command` to the path that `which bun` prints, and `args` to `["/absolute/path/to/web-fetch/src/main.ts", "serve"]`.
 
 For Claude Code, run:
 
 ```sh
-claude mcp add web-fetch -- "$(which bun)" /absolute/path/to/web-fetch/src/main.ts serve
+claude mcp add web-fetch -- "$(which bunx)" github:evanlouie/web-fetch serve
 ```
 
 The server supports MCP 2024-11-05 through 2026-07-28. A client gets the revision it asks for, and a client that asks for another revision gets 2025-11-25. The server sends the client short instructions on when to use the tool. Its stdout carries only MCP messages, and logs go to stderr.
