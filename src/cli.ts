@@ -24,6 +24,15 @@ class Reported extends Schema.TaggedError<Reported>()("Reported", {}) {
 }
 
 // A blocked or refused page still prints, but exits with an error.
+const exitStatus = ({ isError }: Rendered) =>
+  pipe(
+    isError,
+    Boolean.match({
+      onFalse: () => Effect.void,
+      onTrue: () => Effect.fail(new Reported()),
+    }),
+  );
+
 const print = (json: boolean) => (rendered: Rendered) =>
   pipe(
     json,
@@ -32,29 +41,18 @@ const print = (json: boolean) => (rendered: Rendered) =>
       onTrue: () => JSON.stringify(rendered.structured, null, 2),
     }),
     Console.log,
-    Effect.andThen(
-      pipe(
-        rendered.isError,
-        Boolean.match({
-          onFalse: () => Effect.void,
-          onTrue: () => Effect.fail(new Reported()),
-        }),
-      ),
-    ),
+    Effect.andThen(exitStatus(rendered)),
   );
 
 const complain = (cause: Cause.Cause<WebFetchError>) =>
   pipe(failureText(cause), Console.error, Effect.andThen(Effect.fail(new Reported())));
 
-const fetchUrl = Effect.fn("cli.fetch")(function* ({
-  json,
-  ...args
-}: Arguments & { readonly json: boolean }) {
+const fetchUrl = Effect.fn("cli.fetch")(function* (config: Arguments & { readonly json: boolean }) {
   const webFetch = yield* WebFetch;
   return yield* pipe(
-    decodeRequest(args),
+    decodeRequest(config),
     Effect.flatMap(webFetch.fetch),
-    Effect.matchCauseEffect({ onSuccess: print(json), onFailure: complain }),
+    Effect.matchCauseEffect({ onSuccess: print(config.json), onFailure: complain }),
   );
 });
 
@@ -76,7 +74,7 @@ const fetchCommand = pipe(
       json: pipe(
         Flag.Boolean("json"),
         Flag.withDescription(
-          "Print the result as JSON, the structuredContent that MCP clients receive.",
+          "Print the result as JSON: the facts about the response, with up to 1 MiB of its text.",
         ),
         Flag.withDefault(false),
       ),

@@ -19,6 +19,9 @@ const saveError = () =>
     message: "Could not save the response to a temporary file.",
   });
 
+const removeDirectory = (fs: FileSystem.FileSystem) => (directory: string) =>
+  pipe(fs.remove(directory, { recursive: true }), Effect.ignore);
+
 /** Remove the download directory unless its files must outlive the process. */
 const release = (fs: FileSystem.FileSystem, root: DownloadRoot, retention: Retention) =>
   pipe(
@@ -26,13 +29,9 @@ const release = (fs: FileSystem.FileSystem, root: DownloadRoot, retention: Reten
     Match.when("keep", () => Effect.void),
     Match.when("discard", () =>
       pipe(
-        SynchronizedRef.getAndSet(root, Option.none()),
-        Effect.flatMap(
-          Option.match({
-            onNone: () => Effect.void,
-            onSome: (existing) => pipe(fs.remove(existing, { recursive: true }), Effect.ignore),
-          }),
-        ),
+        root,
+        SynchronizedRef.getAndSet(Option.none<string>()),
+        Effect.flatMap(Option.match({ onNone: () => Effect.void, onSome: removeDirectory(fs) })),
       ),
     ),
     Match.exhaustive,
@@ -54,7 +53,8 @@ export class Downloads extends Context.Service<
         const root: DownloadRoot = yield* SynchronizedRef.make(Option.none<string>());
         yield* Effect.addFinalizer(() => release(fs, root, retention));
 
-        const rootDirectory = SynchronizedRef.modifyEffect(root, (existing) =>
+        // The first save creates the directory, and later saves reuse it.
+        const created = (existing: Option.Option<string>) =>
           pipe(
             existing,
             Option.match({
@@ -65,8 +65,8 @@ export class Downloads extends Context.Service<
                   Effect.map((directory) => [directory, Option.some(directory)] as const),
                 ),
             }),
-          ),
-        );
+          );
+        const rootDirectory = pipe(root, SynchronizedRef.modifyEffect(created));
 
         // Each save gets its own directory, so names never collide. The
         // directory exists only if the whole file was written.
@@ -82,9 +82,7 @@ export class Downloads extends Context.Service<
                 const file = path.join(directory, name);
                 yield* pipe(
                   restore(fs.writeFile(file, data)),
-                  Effect.onError(() =>
-                    pipe(fs.remove(directory, { recursive: true }), Effect.ignore),
-                  ),
+                  Effect.onError(() => removeDirectory(fs)(directory)),
                 );
                 return file;
               }),

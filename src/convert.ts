@@ -48,7 +48,7 @@ export const Conversion = Data.taggedEnum<Conversion>();
 const WORKER = new URL("./convert-worker.ts", import.meta.url);
 // A conversion gets half of the tool's deadline, so the HTML can still be
 // shown when it runs out.
-const BUDGET = Duration.seconds(30);
+const BUDGET = Duration.seconds(25);
 // Node enforces the heap limit. Bun and Deno ignore it, so the process's
 // memory growth is watched as well.
 const HEAP_LIMIT_MB = 1_536;

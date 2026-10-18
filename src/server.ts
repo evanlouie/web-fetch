@@ -14,10 +14,12 @@ import {
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { TOOL_NAME } from "./domain.ts";
 import { failureText, WebFetch } from "./fetch.ts";
-import { Structured, type Rendered } from "./output.ts";
+import type { Rendered } from "./output.ts";
 import { Arguments, decodeRequest, description, instructions } from "./tool.ts";
 
-// A client gets the newest revision that it offers.
+// A client gets the revision it asks for. A client that asks for another one
+// gets 2025-11-25, the newest revision that starts with initialize.
+// 2026-07-28 has no initialize. Each of its requests names the revision.
 const PROTOCOLS = [
   McpProtocol.v2026_07_28,
   McpProtocol.v2025_11_25,
@@ -30,12 +32,11 @@ const PROTOCOLS = [
 const jsonSchemaOf = (schema: Schema.Top) =>
   Schema.toJsonSchemaDocument(schema, { onExcessProperty: "error" }).schema;
 
-const toolResult = ({ text, structured, isError }: Rendered) =>
-  new McpSchema.CallToolResult({
-    content: [{ type: "text", text }],
-    structuredContent: structured,
-    isError,
-  });
+// A result carries only the report. Claude Code, VS Code, and Codex show the
+// model a result's structuredContent in place of its content when it has both,
+// and the model would then lose the report's warning and output limit.
+const toolResult = ({ text, isError }: Rendered) =>
+  new McpSchema.CallToolResult({ content: [{ type: "text", text }], isError });
 
 // A failed fetch is a tool result rather than a protocol error, so the model
 // sees why it failed.
@@ -55,11 +56,6 @@ const register = Effect.gen(function* () {
     Schema.decodeUnknownEffect(McpSchema.ToolJson),
     Effect.orDie,
   );
-  const outputSchema = yield* pipe(
-    jsonSchemaOf(Structured),
-    Schema.decodeUnknownEffect(McpSchema.ToolOutputJson),
-    Effect.orDie,
-  );
   const answer = (args: Arguments) =>
     pipe(
       decodeRequest(args),
@@ -72,7 +68,6 @@ const register = Effect.gen(function* () {
       title: "Web fetch",
       description,
       inputSchema,
-      outputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -110,9 +105,10 @@ const stopped = (cause: Cause.Cause<Cause.IllegalArgumentError>) =>
 
 /**
  * Run the server until the client closes stdin, which is how MCP clients stop
- * a stdio server. The transport stops by interrupting the fiber that started
- * it, so the server runs in a child fiber whose interruption is a clean stop.
- * A signal interrupts the main fiber instead, and still exits with 130.
+ * a stdio server. The calls in flight finish first, each within its deadline.
+ * The transport then stops by interrupting the fiber that started it, so the
+ * server runs in a child fiber whose interruption is a clean stop. A signal
+ * interrupts the main fiber instead, and still exits with 130.
  */
 export const serve = (version: string) =>
   pipe(

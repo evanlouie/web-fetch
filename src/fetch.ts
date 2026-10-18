@@ -71,7 +71,9 @@ const retrieve = Effect.fn("webFetch.retrieve")(function* (request: FetchRequest
   return { request, fetched, media, verdict, content };
 }, Effect.scoped);
 
-const DEADLINE = Duration.seconds(60);
+// Clients built on the official MCP SDK give up on a request after 60 seconds,
+// so a call ends sooner and can still report its own timeout.
+const DEADLINE = Duration.seconds(50);
 const timedOut = ({ url }: FetchRequest) =>
   new WebFetchError({
     message: `Fetching ${clipChars(300)(url.href)} timed out after ${Duration.format(DEADLINE)}.`,
@@ -110,7 +112,8 @@ export const failureText = (cause: Cause.Cause<WebFetchError>) =>
   );
 
 const make = Effect.gen(function* () {
-  const services = yield* Effect.context<Converter | Web | Downloads>();
+  const context = yield* Effect.context<Converter | Web | Downloads>();
+  const services = pipe(context, Context.pick(Converter, Web, Downloads));
   return WebFetch.of({ fetch: flow(fetchPage, Effect.provideContext(services)) });
 });
 

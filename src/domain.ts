@@ -1,3 +1,7 @@
+// Bun types TextDecoder's label as one of the encodings it knows. The decoder
+// itself takes any label and throws on an unknown one, which `supported`
+// relies on. Node's type for the same class takes any string.
+import { TextDecoder } from "node:util";
 import {
   Array,
   Boolean,
@@ -12,9 +16,6 @@ import {
   String as Str,
 } from "effect";
 import { nestingDepth } from "./markup.ts";
-// Node's TextDecoder takes any label and throws on an unknown one, which
-// `supported` relies on. Bun's global type admits only known labels.
-import { TextDecoder } from "node:util";
 
 export const TOOL_NAME = "web_fetch";
 
@@ -71,7 +72,7 @@ export const oneLine = flow(Str.replace(/\s+/g, " "), Str.trim);
 
 export type Limit = { readonly maxBytes: number; readonly maxLines: number };
 
-/** How much text a tool result shows a model, as in pi's built-in tools. */
+/** The most text that a result shows a model. */
 export const OUTPUT_LIMIT: Limit = { maxBytes: 50 * 1024, maxLines: 2_000 };
 
 /** A byte count for people, such as `512B`, `50.0KB`, or `25.0MB`. */

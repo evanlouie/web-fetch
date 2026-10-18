@@ -260,15 +260,16 @@ const metadata = (article: Article) =>
     Array.join("\n"),
   );
 
+// Metadata and the body both come from the page, so the warning precedes
+// either one.
 const document = (report: Report, shown: Option.Option<string>) =>
   pipe(
-    [
-      Option.some(header(report)),
-      pipe(shown, Option.as(WARNING)),
-      pipe(articleOf(report.content), Option.map(metadata)),
-      shown,
-    ],
+    [pipe(articleOf(report.content), Option.map(metadata)), shown],
     Array.getSomes,
+    Array.match({
+      onEmpty: () => [header(report)],
+      onNonEmpty: (untrusted) => pipe([header(report), WARNING], Array.appendAll(untrusted)),
+    }),
     Array.join("\n\n"),
   );
 
@@ -293,7 +294,7 @@ const Summary = Schema.Struct({
   elapsedMs: Schema.Int,
 });
 
-/** The facts of a result as data, with up to 1 MiB of the original text. Absent fields are omitted. */
+/** The facts of a result as data, with up to 1 MiB of the original text. Absent fields are omitted. The CLI prints it with --json. */
 export const Structured = Summary.mapFields(
   Struct.assign({
     text: Schema.OptionFromOptionalKey(Schema.String),
@@ -301,7 +302,7 @@ export const Structured = Summary.mapFields(
   }),
 );
 
-/** A fetch laid out for a model to read, with the same facts as data for scripts. */
+/** A fetch laid out for a model to read, with the same facts as data. */
 export type Rendered = {
   /** The report, within the output limit. */
   readonly text: string;
