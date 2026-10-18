@@ -62,7 +62,7 @@ Add the server to the client's configuration. Most clients use this shape:
 
 Set `command` to the path that `which bunx` prints. Desktop apps on macOS, such as Claude Desktop, don't read your shell's environment, so they can't find a bare `bunx` on your `PATH`.
 
-`bunx` installs the dependencies when the server first starts. If your network reaches npm only through a proxy registry, set `NPM_CONFIG_REGISTRY` in the server's `env` too, because a desktop app doesn't pass on the value from your shell.
+`bunx` installs the dependencies when the server first starts, from the registry that `~/.npmrc` names. A desktop app doesn't pass on your shell's variables, so if you set a proxy registry only in `NPM_CONFIG_REGISTRY`, set it in the server's `env` as well.
 
 To run a clone instead, set `command` to the path that `which bun` prints, and set `args` to `["/absolute/path/to/web-fetch/src/main.ts", "serve"]`.
 
