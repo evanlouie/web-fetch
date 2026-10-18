@@ -1,4 +1,4 @@
-# mcp-web-fetch
+# web-fetch
 
 A `web_fetch` tool that fetches web pages and files with a real browser's TLS and HTTP/2 fingerprint, as a command-line tool or as an MCP server over stdio. [wreq-js] does the fingerprinting in native code, so requests pass many bot checks that block curl and Node's `fetch`.
 
@@ -13,16 +13,16 @@ bun install
 bun link
 ```
 
-`bun link` puts `mcp-web-fetch` on your `PATH`. Without it, run `bun src/main.ts` in its place.
+`bun link` puts `web-fetch` on your `PATH`. Without it, run `bun src/main.ts` in its place.
 
 ## Fetch a page from the command line
 
 ```sh
-mcp-web-fetch fetch https://example.com
-mcp-web-fetch fetch https://example.com --format raw --browser chrome
+web-fetch fetch https://example.com
+web-fetch fetch https://example.com --format raw --browser chrome
 ```
 
-`fetch` prints the JSON result that the MCP tool returns, described in [The result](#the-result). Run `mcp-web-fetch fetch --help` for every flag.
+`fetch` prints the JSON result that the MCP tool returns, described in [The result](#the-result). Run `web-fetch fetch --help` for every flag.
 
 | Exit code | Meaning |
 | --- | --- |
@@ -39,7 +39,7 @@ Add the server to the client's configuration. Most clients take this shape:
   "mcpServers": {
     "web-fetch": {
       "command": "/absolute/path/to/bun",
-      "args": ["/absolute/path/to/mcp-web-fetch/src/main.ts", "serve"]
+      "args": ["/absolute/path/to/web-fetch/src/main.ts", "serve"]
     }
   }
 }
@@ -50,7 +50,7 @@ Use the path that `which bun` prints. Desktop apps on macOS, such as Claude Desk
 For Claude Code, run:
 
 ```sh
-claude mcp add web-fetch -- "$(which bun)" /absolute/path/to/mcp-web-fetch/src/main.ts serve
+claude mcp add web-fetch -- "$(which bun)" /absolute/path/to/web-fetch/src/main.ts serve
 ```
 
 The server supports MCP 2024-11-05 through 2026-07-28. A client gets the revision it asks for, and a client that asks for another revision gets 2025-11-25. The server sends the client short instructions on when to use the tool. Its stdout carries only MCP messages, and logs go to stderr.
@@ -149,7 +149,7 @@ Defuddle's site extractors, such as YouTube transcripts, make their own requests
 
 ## Saved files
 
-Each process saves files in one private temporary directory, named `mcp-web-fetch-` and a random suffix. A binary download is named after the requested URL's path, so a redirect cannot choose its name. A save that fails or is cancelled leaves nothing behind.
+Each process saves files in one private temporary directory, named `web-fetch-` and a random suffix. A binary download is named after the requested URL's path, so a redirect cannot choose its name. A save that fails or is cancelled leaves nothing behind.
 
 - `serve` removes the directory when the server stops. The paths mean something only to the conversation the server serves.
 - `fetch` keeps the directory, so the paths it prints stay valid. The operating system clears its temporary directory in time.
@@ -171,7 +171,7 @@ bun run check
 
 `check` runs the formatter's check, oxlint with type-aware rules and type checking, and the tests in `src/`. `bun run format` formats the code.
 
-`repos/effect/` holds Effect's source at the installed version, as a read-only reference for its APIs and idioms. `effect` and `@effect/platform-node` are pinned to the same version, which must match `repos/effect/`. Update all three together.
+`repos/effect/` holds Effect's source at the installed version, as a read-only reference for its APIs and idioms. `effect`, `@effect/platform-node`, and `@effect/platform-node-shared` are pinned to the same version, which must match `repos/effect/`. The code never imports `@effect/platform-node-shared`. It is listed only to hold the pin, because `overrides` applies only to the root project and not when `bunx` installs this one. Update all four together.
 
 [Bun]: https://bun.com
 [Defuddle]: https://github.com/kepano/defuddle

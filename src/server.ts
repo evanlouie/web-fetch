@@ -98,7 +98,7 @@ const layer = (version: string) =>
   pipe(
     Layer.effectDiscard(register),
     Layer.provide(
-      McpServer.layerStdio({ name: "mcp-web-fetch", version, instructions, protocols: PROTOCOLS }),
+      McpServer.layerStdio({ name: "web-fetch", version, instructions, protocols: PROTOCOLS }),
     ),
     Layer.provide(WebFetch.layer("discard")),
   );

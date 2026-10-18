@@ -1,10 +1,14 @@
 {
-  "name": "mcp-web-fetch",
+  "name": "web-fetch",
   "version": "0.1.0",
   "private": true,
   "description": "Fetch web pages as Markdown with a real browser's TLS and HTTP/2 fingerprint, from the command line or as an MCP server over stdio.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evanlouie/web-fetch.git"
+  },
   "bin": {
-    "mcp-web-fetch": "./src/main.ts"
+    "web-fetch": "./src/main.ts"
   },
   "type": "module",
   "scripts": {
@@ -16,6 +20,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "4.0.2",
+    "@effect/platform-node-shared": "4.0.2",
     "defuddle": "^0.19.5",
     "effect": "4.0.2",
     "linkedom": "^0.18.13",
@@ -26,9 +31,6 @@
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "oxlint-tsgolint": "^7.0.2004"
-  },
-  "overrides": {
-    "@effect/platform-node-shared": "4.0.2"
   },
   "engines": {
     "bun": ">=1.4.3"

@@ -42,7 +42,7 @@ export class Downloads extends Context.Service<
   {
     readonly save: (name: string, data: Uint8Array) => Effect.Effect<string, WebFetchError>;
   }
->()("mcp-web-fetch/Downloads") {
+>()("web-fetch/Downloads") {
   /** Saves files until the layer closes, then keeps or removes them by retention. */
   static readonly layer = (retention: Retention) =>
     Layer.effect(
@@ -61,7 +61,7 @@ export class Downloads extends Context.Service<
               onSome: (directory) => Effect.succeed([directory, existing] as const),
               onNone: () =>
                 pipe(
-                  fs.makeTempDirectory({ prefix: "mcp-web-fetch-" }),
+                  fs.makeTempDirectory({ prefix: "web-fetch-" }),
                   Effect.map((directory) => [directory, Option.some(directory)] as const),
                 ),
             }),

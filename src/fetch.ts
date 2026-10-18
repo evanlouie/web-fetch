@@ -123,7 +123,7 @@ export class WebFetch extends Context.Service<
     /** Fetch a page within the deadline, and lay it out for a model. */
     readonly fetch: (request: FetchRequest) => Effect.Effect<Rendered, WebFetchError>;
   }
->()("mcp-web-fetch/WebFetch") {
+>()("web-fetch/WebFetch") {
   static readonly layer = (retention: Retention) =>
     pipe(
       Layer.effect(WebFetch, make),

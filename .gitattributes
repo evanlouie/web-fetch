@@ -1,0 +1,2 @@
+# Keep the vendored Effect source out of GitHub's tarballs, which bunx downloads.
+/repos export-ignore

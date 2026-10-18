@@ -71,11 +71,11 @@ const fetchCommand = pipe(
   ),
   Command.withExamples([
     {
-      command: "mcp-web-fetch fetch https://example.com",
+      command: "web-fetch fetch https://example.com",
       description: "Print a page's main content as Markdown, in page.text",
     },
     {
-      command: "mcp-web-fetch fetch https://example.com --format raw --browser chrome",
+      command: "web-fetch fetch https://example.com --format raw --browser chrome",
       description: "Print the HTML source, impersonating Chrome",
     },
   ]),
@@ -92,7 +92,7 @@ const serveCommand = (version: string) =>
 
 export const cli = (version: string) =>
   pipe(
-    Command.make("mcp-web-fetch"),
+    Command.make("web-fetch"),
     Command.withDescription(
       "Fetch web pages as Markdown with a real browser's TLS and HTTP/2 fingerprint.",
     ),
