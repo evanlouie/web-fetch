@@ -33,26 +33,18 @@ const exitStatus = ({ isError }: Rendered) =>
     }),
   );
 
-const print = (json: boolean) => (rendered: Rendered) =>
-  pipe(
-    json,
-    Boolean.match({
-      onFalse: () => rendered.text,
-      onTrue: () => JSON.stringify(rendered.structured, null, 2),
-    }),
-    Console.log,
-    Effect.andThen(exitStatus(rendered)),
-  );
+const print = (rendered: Rendered) =>
+  pipe(Console.log(rendered.text), Effect.andThen(exitStatus(rendered)));
 
 const complain = (cause: Cause.Cause<WebFetchError>) =>
   pipe(failureText(cause), Console.error, Effect.andThen(Effect.fail(new Reported())));
 
-const fetchUrl = Effect.fn("cli.fetch")(function* (config: Arguments & { readonly json: boolean }) {
+const fetchUrl = Effect.fn("cli.fetch")(function* (args: Arguments) {
   const webFetch = yield* WebFetch;
   return yield* pipe(
-    decodeRequest(config),
+    decodeRequest(args),
     Effect.flatMap(webFetch.fetch),
-    Effect.matchCauseEffect({ onSuccess: print(config.json), onFailure: complain }),
+    Effect.matchCauseEffect({ onSuccess: print, onFailure: complain }),
   );
 });
 
@@ -71,23 +63,16 @@ const fetchCommand = pipe(
         Flag.withDescription(BROWSER_DESCRIPTION),
         Flag.withDefault(DEFAULT_BROWSER),
       ),
-      json: pipe(
-        Flag.Boolean("json"),
-        Flag.withDescription(
-          "Print the result as JSON: the facts about the response, with up to 1 MiB of its text.",
-        ),
-        Flag.withDefault(false),
-      ),
     },
     fetchUrl,
   ),
   Command.withDescription(
-    "Fetch a URL and print what the web_fetch tool returns. Saved files outlive the command.",
+    "Fetch a URL and print the JSON result that the web_fetch tool returns. Saved files outlive the command.",
   ),
   Command.withExamples([
     {
       command: "mcp-web-fetch fetch https://example.com",
-      description: "Print a page's main content as Markdown",
+      description: "Print a page's main content as Markdown, in page.text",
     },
     {
       command: "mcp-web-fetch fetch https://example.com --format raw --browser chrome",

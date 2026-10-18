@@ -14,7 +14,7 @@ import {
 import { McpProtocol, McpSchema, McpServer } from "effect/ai";
 import { TOOL_NAME } from "./domain.ts";
 import { failureText, WebFetch } from "./fetch.ts";
-import type { Rendered } from "./output.ts";
+import { Result, type Rendered } from "./output.ts";
 import { Arguments, decodeRequest, description, instructions } from "./tool.ts";
 
 // A client gets the revision it asks for. A client that asks for another one
@@ -32,11 +32,14 @@ const PROTOCOLS = [
 const jsonSchemaOf = (schema: Schema.Top) =>
   Schema.toJsonSchemaDocument(schema, { onExcessProperty: "error" }).schema;
 
-// A result carries only the report. Claude Code, VS Code, and Codex show the
-// model a result's structuredContent in place of its content when it has both,
-// and the model would then lose the report's warning and output limit.
-const toolResult = ({ text, isError }: Rendered) =>
-  new McpSchema.CallToolResult({ content: [{ type: "text", text }], isError });
+// The text block is the structured result as JSON, as MCP asks. A client
+// gives its model one or the other, and both carry the same safe values.
+const toolResult = ({ structured, text, isError }: Rendered) =>
+  new McpSchema.CallToolResult({
+    content: [{ type: "text", text }],
+    structuredContent: structured,
+    isError,
+  });
 
 // A failed fetch is a tool result rather than a protocol error, so the model
 // sees why it failed.
@@ -56,6 +59,11 @@ const register = Effect.gen(function* () {
     Schema.decodeUnknownEffect(McpSchema.ToolJson),
     Effect.orDie,
   );
+  const outputSchema = yield* pipe(
+    jsonSchemaOf(Result),
+    Schema.decodeUnknownEffect(McpSchema.ToolOutputJson),
+    Effect.orDie,
+  );
   const answer = (args: Arguments) =>
     pipe(
       decodeRequest(args),
@@ -68,6 +76,7 @@ const register = Effect.gen(function* () {
       title: "Web fetch",
       description,
       inputSchema,
+      outputSchema,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,

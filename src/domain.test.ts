@@ -9,6 +9,7 @@ import {
   fileName,
   formatSize,
   judge,
+  limitJsonText,
   limitText,
   Media,
   parseUrl,
@@ -159,6 +160,16 @@ test("limitText keeps whole lines, but cuts one long line instead of dropping it
   // A cut never splits a character.
   assert.equal(limitText("é".repeat(5), { maxBytes: 5, maxLines: 5 }).text, "éé");
   assert.equal(limitText("same\n", { maxBytes: 100, maxLines: 5 }).truncated, false);
+});
+
+test("limitJsonText keeps the text within the limit once escaped as JSON", () => {
+  const text = 'line "quoted"\n'.repeat(1_000);
+  const limited = limitJsonText(text, { maxBytes: 1_000, maxLines: 2_000 });
+  const escaped = JSON.stringify(limited.text).length - 2;
+  assert.ok(limited.truncated);
+  assert.ok(escaped <= 1_000 && escaped > 900, `escaped to ${escaped} bytes`);
+  assert.ok(text.startsWith(limited.text) && limited.text.endsWith('line "quoted"'));
+  assert.equal(limitJsonText("plain", { maxBytes: 100, maxLines: 5 }).text, "plain");
 });
 
 test("clipChars never splits a character", () => {

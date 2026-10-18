@@ -72,7 +72,7 @@ export const oneLine = flow(Str.replace(/\s+/g, " "), Str.trim);
 
 export type Limit = { readonly maxBytes: number; readonly maxLines: number };
 
-/** The most text that a result shows a model. */
+/** The size of a result: at most 50 KB of JSON, with at most 2000 lines of page text. */
 export const OUTPUT_LIMIT: Limit = { maxBytes: 50 * 1024, maxLines: 2_000 };
 
 /** A byte count for people, such as `512B`, `50.0KB`, or `25.0MB`. */
@@ -131,6 +131,31 @@ export const limitText = (text: string, { maxBytes, maxLines }: Limit): Limited 
     shownBytes: byteLength(shown),
     totalBytes: byteLength(text),
   };
+};
+
+/** The bytes a text takes as a JSON string, without its quotes. */
+const jsonBytes = (text: string) => byteLength(JSON.stringify(text)) - 2;
+
+/**
+ * Keep the start of a text so that it fits the limit once written as a JSON
+ * string. Escapes only add bytes, and a shorter start of a text never needs
+ * more of them, so a second cut that leaves room for the first cut's escapes
+ * always fits.
+ */
+export const limitJsonText = (text: string, limit: Limit): Limited => {
+  const first = limitText(text, limit);
+  const escaped = jsonBytes(first.text);
+  return pipe(
+    escaped <= limit.maxBytes,
+    Boolean.match({
+      onTrue: () => first,
+      onFalse: () =>
+        limitText(text, {
+          maxBytes: Math.max(0, limit.maxBytes - (escaped - first.shownBytes)),
+          maxLines: limit.maxLines,
+        }),
+    }),
+  );
 };
 
 // Requests
