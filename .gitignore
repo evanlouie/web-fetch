@@ -1,0 +1,4 @@
+node_modules/
+# Each machine resolves through its own registry, so the lockfile stays local.
+bun.lock
+.DS_Store

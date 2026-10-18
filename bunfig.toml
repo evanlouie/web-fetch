@@ -1,0 +1,3 @@
+# Keep bun test out of the vendored Effect source in repos/.
+[test]
+root = "./src"
