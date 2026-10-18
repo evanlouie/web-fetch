@@ -6,6 +6,7 @@ import {
   clipChars,
   convertible,
   decodeText,
+  displayable,
   fileName,
   formatSize,
   judge,
@@ -162,14 +163,24 @@ test("limitText keeps whole lines, but cuts one long line instead of dropping it
   assert.equal(limitText("same\n", { maxBytes: 100, maxLines: 5 }).truncated, false);
 });
 
-test("limitJsonText keeps the text within the limit once escaped as JSON", () => {
+test("limitJsonText keeps the longest start that fits once escaped as JSON", () => {
+  const limit = { maxBytes: 1_000, maxLines: 2_000 };
+  const escaped = (text: string) => JSON.stringify(text).length - 2;
   const text = 'line "quoted"\n'.repeat(1_000);
-  const limited = limitJsonText(text, { maxBytes: 1_000, maxLines: 2_000 });
-  const escaped = JSON.stringify(limited.text).length - 2;
-  assert.ok(limited.truncated);
-  assert.ok(escaped <= 1_000 && escaped > 900, `escaped to ${escaped} bytes`);
-  assert.ok(text.startsWith(limited.text) && limited.text.endsWith('line "quoted"'));
-  assert.equal(limitJsonText("plain", { maxBytes: 100, maxLines: 5 }).text, "plain");
+  const lines = limitJsonText(text, limit);
+  // 58 whole lines escape to 984 bytes, and 59 would not fit.
+  assert.equal(escaped(lines.text), 984);
+  assert.ok(text.startsWith(lines.text) && lines.truncated);
+  // One long line of characters that all need escaping is cut, not dropped.
+  assert.equal(limitJsonText("\\".repeat(100_000), limit).text, "\\".repeat(500));
+  assert.equal(limitJsonText("plain", limit).text, "plain");
+});
+
+test("displayable removes what a terminal or a JSON parser would misread, and hidden text", () => {
+  assert.equal(displayable("a\r\nb\x1b[31mc\x1b[0m\x00\x07\td"), "a\nbc\td");
+  assert.equal(displayable("x\udc00y"), "x\ufffdy");
+  assert.equal(displayable("safe\u{E0049}\u{E0047}\u202Etext"), "safetext");
+  assert.equal(displayable("😀 café\u200d"), "😀 café\u200d");
 });
 
 test("clipChars never splits a character", () => {

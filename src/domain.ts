@@ -1,7 +1,7 @@
 // Bun types TextDecoder's label as one of the encodings it knows. The decoder
 // itself takes any label and throws on an unknown one, which `supported`
 // relies on. Node's type for the same class takes any string.
-import { TextDecoder } from "node:util";
+import { stripVTControlCharacters, TextDecoder } from "node:util";
 import {
   Array,
   Boolean,
@@ -70,6 +70,24 @@ export const clipChars =
 /** Collapse line breaks and runs of whitespace, so a value stays on one line. */
 export const oneLine = flow(Str.replace(/\s+/g, " "), Str.trim);
 
+// Tag characters can carry text that a model reads but a person never sees,
+// and bidirectional controls can reorder what a person sees.
+const HIDDEN = /[\u{E0000}-\u{E007F}\u202A-\u202E\u2066-\u2069]/gu;
+
+/**
+ * Make text from the web safe to show and to send as JSON. Unpaired
+ * surrogates, which strict JSON parsers reject, become U+FFFD. Line breaks
+ * become newlines. Terminal escapes, control characters other than tabs,
+ * tag characters, and bidirectional controls go.
+ */
+export const displayable = flow(
+  (text: string) => text.toWellFormed(),
+  Str.replace(/\r\n?/g, "\n"),
+  stripVTControlCharacters,
+  Str.replace(/[^\P{Cc}\t\n]/gu, ""),
+  Str.replace(HIDDEN, ""),
+);
+
 export type Limit = { readonly maxBytes: number; readonly maxLines: number };
 
 /** The size of a result: at most 50 KB of JSON, with at most 2000 lines of page text. */
@@ -137,23 +155,39 @@ export const limitText = (text: string, { maxBytes, maxLines }: Limit): Limited 
 const jsonBytes = (text: string) => byteLength(JSON.stringify(text)) - 2;
 
 /**
- * Keep the start of a text so that it fits the limit once written as a JSON
- * string. Escapes only add bytes, and a shorter start of a text never needs
- * more of them, so a second cut that leaves room for the first cut's escapes
- * always fits.
+ * Keep the longest start of a text that fits the limit once written as a
+ * JSON string. A larger byte limit never gives a shorter start, so the
+ * escaped size grows with the byte limit, and a binary search finds the
+ * largest one that fits.
  */
 export const limitJsonText = (text: string, limit: Limit): Limited => {
-  const first = limitText(text, limit);
-  const escaped = jsonBytes(first.text);
+  const cut = (maxBytes: number) => limitText(text, { maxBytes, maxLines: limit.maxLines });
+  const fits = (limited: Limited) => jsonBytes(limited.text) <= limit.maxBytes;
+  // Between a byte limit whose cut fits and one whose cut does not.
+  const largest = (fitting: number, failing: number): number =>
+    pipe(
+      failing - fitting <= 1,
+      Boolean.match({
+        onTrue: () => fitting,
+        onFalse: () => {
+          const middle = Math.floor((fitting + failing) / 2);
+          return pipe(
+            fits(cut(middle)),
+            Boolean.match({
+              onTrue: () => largest(middle, failing),
+              onFalse: () => largest(fitting, middle),
+            }),
+          );
+        },
+      }),
+    );
+  const first = cut(limit.maxBytes);
   return pipe(
-    escaped <= limit.maxBytes,
+    fits(first),
     Boolean.match({
       onTrue: () => first,
-      onFalse: () =>
-        limitText(text, {
-          maxBytes: Math.max(0, limit.maxBytes - (escaped - first.shownBytes)),
-          maxLines: limit.maxLines,
-        }),
+      // A cut of no bytes is empty, so it always fits.
+      onFalse: () => cut(largest(0, limit.maxBytes)),
     }),
   );
 };
@@ -655,10 +689,13 @@ const safeName = (segment: string) =>
     Str.replace(RESERVED_NAME, "_$&"),
   );
 
-/** A safe file name for a download, from the URL path and the media type. */
+/**
+ * A safe file name for a download, from the path of the requested URL and the
+ * media type. A redirect cannot choose the name.
+ */
 export const fileName = (fetched: Fetched) => {
   const base = pipe(
-    fetched.url.pathname,
+    fetched.requested.pathname,
     Str.split("/"),
     Array.lastNonEmpty,
     safeName,
